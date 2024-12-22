@@ -51,6 +51,22 @@ public void save_winner(WinnerRequest winnerRequest) {
         winnerRepository.save(winner);
     }
 
+    public void setWinnerFields(WinnerRequest winnerRequest) {
+        Optional<Winner> existingWinnerOpt = winnerRepository.findByMatch_id(winnerRequest.getMatch_id());
+        Winner winner;
+
+        if (existingWinnerOpt.isPresent()) {
+            winner = existingWinnerOpt.get();
+        } else {
+            winner = new Winner();
+            winner.setMatch_id(winnerRequest.getMatch_id());
+        }
+
+        setTeam(winnerRequest.getWinnerTeamID(), winner);
+        setWinners(winnerRequest, winner);
+        winnerRepository.save(winner);
+    }
+
     private void setTeam(Long teamID, Winner winner) {
         Optional<Matches> matches = matchesRepository.findById(winner.getMatch_id());
         Optional<Teams> teams = teamsRepository.findById(teamID);
@@ -87,7 +103,6 @@ public void save_winner(WinnerRequest winnerRequest) {
 
         winner.setWinners(stringBuilder.toString());
     }
-
 
 }
 
