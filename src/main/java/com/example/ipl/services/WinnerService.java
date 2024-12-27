@@ -37,6 +37,18 @@ public void save_winner(WinnerRequest winnerRequest) {
       matchesRepository.save(matches2);
 
     }
+        Optional<Winner> existingWinnerOpt = winnerRepository.findByMatch_id(winnerRequest.getMatch_id());
+        Winner winner;
+        if (existingWinnerOpt.isPresent()) {
+            winner = existingWinnerOpt.get();
+        } else {
+            winner = new Winner();
+            winner.setMatch_id(winnerRequest.getMatch_id());
+        }
+
+        setTeam(winnerRequest.getWinnerTeamID(), winner);
+        setWinners(winnerRequest, winner);
+        winnerRepository.save(winner);
     }
 
     public void setWinnerFields(WinnerRequest winnerRequest) {
