@@ -10,18 +10,10 @@ public class Teams {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String team_name;
+    private String name;
 
     public Long getId() {
         return id;
-    }
-
-    @Override
-    public String toString() {
-        return "Teams{" +
-                "id=" + id +
-                ", team_name='" + team_name + '\'' +
-                ", name='" + name + '\'' +
-                '}';
     }
 
     public String getTeam_name() {
@@ -44,5 +36,12 @@ public class Teams {
         this.name = name;
     }
 
-    private String name;
+    @Override
+    public String toString() {
+        return "Teams{" +
+                "id=" + id +
+                ", team_name='" + team_name + '\'' +
+                ", name='" + name + '\'' +
+                '}';
+    }
 }
