@@ -27,7 +27,7 @@ public class MatchController {
     @GetMapping(value = "/getMatcheByDate")
     public List<Matches> responseEntity(@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         try {
-            return matchesRepository.findByDate(date);
+            return matchesRepository.findByMatch_date(date);
 
         } catch (Exception e) {
             log.error("failed to fetch the matches by this date");
