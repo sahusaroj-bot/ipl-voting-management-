@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.List;
 
 @RestController
 public class MatchController {
@@ -24,7 +25,7 @@ public class MatchController {
     private static final Logger log = LoggerFactory.getLogger(com.example.ipl.controller.UserController.class);
 
     @GetMapping(value = "/getMatcheByDate")
-    public Matches responseEntity(@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+    public List<Matches> responseEntity(@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         try {
             return matchesRepository.findByDate(date);
 
