@@ -51,6 +51,12 @@ public class UserController {
        return userRepository.findAll();
     }
 
+    @PostMapping("/addUsers")
+    public User addUser(@RequestBody User user) {
+        System.out.println("Received User: " + user);
+        return userRepository.save(user);
+    }
+
 public static class AuthResponse {
     private String token;
     public AuthResponse(String token) {
