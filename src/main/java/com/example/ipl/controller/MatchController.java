@@ -22,9 +22,10 @@ public class MatchController {
     @Autowired
     MatchesRepository matchesRepository;
 
-    private static final Logger log = LoggerFactory.getLogger(com.example.ipl.controller.UserController.class);
+    private static final Logger log = LoggerFactory.getLogger(com.example.ipl.controller.MatchController.class);
 
-    @GetMapping(value = "/getMatcheByDate")
+
+    @GetMapping(value = "/by-date")
     public List<Matches> responseEntity(@RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         try {
             return matchesRepository.findByMatch_date(date);

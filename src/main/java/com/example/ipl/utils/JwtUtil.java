@@ -9,7 +9,7 @@ import java.util.Date;
 
 public class JwtUtil {
     private static final String SECRET_KEY = "1221212";
-    private static final long EXPIRATION_TIME = 3600000; // 1 hour
+    private static final long EXPIRATION_TIME = 360000; // 1 hour
     public static String generateToken(String username)
     {
         return JWT.create() .withSubject(username) .withIssuedAt(new Date()) .withExpiresAt(new Date(System.currentTimeMillis() + EXPIRATION_TIME)) .sign(Algorithm.HMAC256(SECRET_KEY));
