@@ -19,6 +19,7 @@ public class CorsConfig {
 
     @Value("${frontend.url}")
     private String frontendUrl;
+
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
