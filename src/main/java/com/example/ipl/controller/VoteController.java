@@ -1,9 +1,6 @@
 package com.example.ipl.controller;
 
-import com.example.ipl.model.Matches;
-import com.example.ipl.model.Teams;
-import com.example.ipl.model.User;
-import com.example.ipl.model.Vote;
+import com.example.ipl.model.*;
 import com.example.ipl.repositories.MatchesRepository;
 import com.example.ipl.repositories.TeamsRepository;
 import com.example.ipl.repositories.UserRepository;
@@ -29,7 +26,7 @@ public class VoteController {
     VoteService voteService;
 
     @PostMapping("/Insertvote")
-    public ResponseEntity<Object> insertVote(@RequestBody Vote userVote) {
+    public ResponseEntity<Object> insertVote(@RequestBody VoteRequest userVote) {
         log.info(String.valueOf(userVote));
         try {
             voteService.addVote(userVote);
