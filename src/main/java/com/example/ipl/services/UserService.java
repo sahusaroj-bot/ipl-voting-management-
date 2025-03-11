@@ -17,7 +17,7 @@ public class UserService {
 
     public Optional<User> login(User user) throws Exception {
          Long id=user.getId();
-         Optional<User> user1= userRepository.findById(id);
+         Optional<User> user1= userRepository.findByUsernameAndPasswordAndId(user.getUsername(),user.getPassword(),id);
          if(user1.isEmpty()){
              throw new Exception("Authentication failed ");
          }
