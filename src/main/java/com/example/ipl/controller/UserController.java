@@ -28,7 +28,7 @@ public class UserController {
         try {
             Optional<User> user1 = userService.login(user);
             if (user1.isPresent()) {
-                log.info("Authentication Successfull");
+                 log.info("Authentication Successfull");
                 String token = JwtUtil.generateToken(user1.get().getUsername());
                 return ResponseEntity.ok(new AuthResponse(token));
             }
@@ -41,6 +41,11 @@ public class UserController {
             throw new RuntimeException(e);
         }
 
+    }
+    @GetMapping (value="/getMoney")
+    public  double getMoney(@RequestParam ("id")Long id){
+       Optional<User> user=userRepository.findById(id);
+        return user.map(User::getTotalAmount).orElse(null);
     }
 
     @GetMapping(value = "/getuser")

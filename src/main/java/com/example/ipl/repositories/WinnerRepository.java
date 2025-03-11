@@ -10,7 +10,7 @@ import java.util.Optional;
 
 @Repository
     public interface WinnerRepository extends JpaRepository<Winner,Long> {
-    @Query("SELECT w FROM Winner w WHERE w.match_id = :match_id")
-    Optional<Winner> findByMatch_id(Long match_id);
+    @Query("SELECT w.winners FROM Winner w WHERE w.match_id = :match_id")
+    String findByMatch_id(Long match_id);
     }
 
