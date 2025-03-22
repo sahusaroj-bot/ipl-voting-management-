@@ -107,7 +107,7 @@ public class WinnerService {
            Optional<User> winnerID =userRepository.findById(userID);
            if(winnerID.isPresent()){
                 User user1 = winnerID.get();
-                user1.setTotalAmount((long) (user1.getTotalAmount()+money));
+                user1.setTotalAmount((user1.getTotalAmount()+money));
                 userRepository.save(user1);
 
            }
