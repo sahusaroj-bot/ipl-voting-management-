@@ -29,7 +29,7 @@ public class VoteController {
     public ResponseEntity<Object> insertVote(@RequestBody VoteRequest userVote) {
         log.info(String.valueOf(userVote));
         try {
-            voteService.addVote(userVote);
+            voteService.addOrUpdateVote(userVote);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
             log.error("Error adding vote", e);

@@ -26,13 +26,27 @@ public class VoteService {
     @Autowired
     MatchesRepository matchesRepository;
 
-    public void addVote(VoteRequest userVote){
-        Vote vote = new Vote();
+    public void addOrUpdateVote(VoteRequest userVote) {
+        // Fetch existing vote for the user and match
+        Optional<Vote> existingVote = voteRepository.findByUser_idAndMatch_id(userVote.getUser_id(), userVote.getMatch_id());
+
+        Vote vote;
+        if (existingVote.isPresent()) {
+            // Update the existing vote
+            vote = existingVote.get();
+            log.info("Updating existing vote for user: " + userVote.getUser_id() + ", match: " + userVote.getMatch_id());
+        } else {
+            // Create a new vote if it doesn't exist
+            vote = new Vote();
+            vote.setUser_id(userVote.getUser_id());
+            vote.setMatch_id(userVote.getMatch_id());
+            vote.setVote_time(System.currentTimeMillis());
+            log.info("Creating a new vote for user: " + userVote.getUser_id() + ", match: " + userVote.getMatch_id());
+        }
 
         // Fetch user by using the voter's user ID
-          Optional<User> user = userRepository.findById(userVote.getUser_id());
+        Optional<User> user = userRepository.findById(userVote.getUser_id());
         if (user.isPresent()) {
-            vote.setUser_id(userVote.getUser_id());
             vote.setUsername(user.get().getUsername());
         } else {
             log.error("User not found with ID: " + userVote.getUser_id());
@@ -48,7 +62,7 @@ public class VoteService {
             log.info("Team found: " + teams.getName() + " (ID: " + teams.getId() + ")");
         }
 
-        // Fetch match by match ID
+        // Check if the team is part of the match
         Optional<Matches> matches = matchesRepository.findById(userVote.getMatch_id());
         if (!matches.isPresent()) {
             log.error("Match not found with ID: " + userVote.getMatch_id());
@@ -57,7 +71,6 @@ public class VoteService {
             log.info("Match found: " + matches.get().getId() + " involving " + matches.get().getTeam1() + " and " + matches.get().getTeam2());
         }
 
-        // Set team details if they match
         String teamName = teams.getTeam_name();
         if (!teamName.isEmpty() && (matches.get().getTeam1().equals(teamName) || matches.get().getTeam2().equals(teamName))) {
             vote.setVoted_team_id(teams.getId());
@@ -67,12 +80,12 @@ public class VoteService {
             return;
         }
 
-        // Set match ID and vote time
-        vote.setMatch_id(userVote.getMatch_id());
+        // Set updated vote time
         vote.setVote_time(System.currentTimeMillis());
 
-        // Save vote
+        // Save vote (update or create)
         voteRepository.save(vote);
-        log.info("Vote saved successfully for user: " + userVote.getUser_id() + ", team: " + teamName + ", match: " + userVote.getMatch_id());
+        log.info("Vote successfully saved for user: " + userVote.getUser_id() + ", team: " + teamName + ", match: " + userVote.getMatch_id());
     }
+
 }

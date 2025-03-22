@@ -6,7 +6,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "vote", uniqueConstraints = { @UniqueConstraint(columnNames = {"user_id", "match_id"}) })
+@Table(name = "vote")
 public class Vote {
 
     @Id
