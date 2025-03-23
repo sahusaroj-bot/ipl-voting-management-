@@ -25,7 +25,6 @@ public class WinnerService {
     WinnerRepository winnerRepository;
     @Autowired
     UserRepository userRepository;  //To add the money to the user who voted for the winning team
-    private int count = 0;
 
 /* Save the winner Team for the particular match */
     public void save_winnerTeam(WinnerRequest winnerRequest) {
@@ -78,6 +77,7 @@ public class WinnerService {
 
     private void setWinners(WinnerRequest winnerRequest, Winner winner) {
         StringBuilder stringBuilder = new StringBuilder();
+        int count =0;
         List<Long> userIDs= new ArrayList<>();
         List<Vote> votes = voteRepository.findAll()
                 .stream()
@@ -90,7 +90,7 @@ public class WinnerService {
                 count++;
             }
         }
-        setMoney(userIDs);
+        setMoney(userIDs,count);
 
         // Remove trailing comma and space, if necessary
         if (stringBuilder.length() > 0) {
@@ -99,7 +99,7 @@ public class WinnerService {
 
         winner.setWinners(stringBuilder.toString());
     }
-    private void setMoney(List<Long> userIDs) {
+    private void setMoney(List<Long> userIDs,int count) {
         List<User> user = userRepository.findAll();
         int total =user.size()*10;
         double money = (double) total /count;
