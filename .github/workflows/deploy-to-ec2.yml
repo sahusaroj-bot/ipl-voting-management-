@@ -60,7 +60,9 @@ jobs:
             docker stop ipl-voting-app || true
             docker rm ipl-voting-app || true
             docker run -d --name ipl-voting-app -p 8080:8080 \
-              -e DB_URL=${{ secrets.DB_URL }} \
-              -e DB_USER=${{ secrets.DB_USER }} \
-              -e DB_PASS=${{ secrets.DB_PASS }} \
+              -e DATASOURCE_URL=${{ secrets.DATASOURCE_URL }} \
+              -e DATASOURCE_USER=${{ secrets.DATASOURCE_USER }} \
+              -e DATASOURCE_PASSWORD=${{ secrets.DATASOURCE_PASSWORD }} \
+              -e FRONTEND_URL=${{ secrets.FRONTEND_URL }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO_NAME }}:latest
