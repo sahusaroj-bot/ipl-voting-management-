@@ -22,6 +22,9 @@ public class UserController {
     private static final Logger log = LoggerFactory.getLogger(UserController.class);
     @Autowired
     UserService userService;
+    
+    @Autowired
+    JwtUtil jwtUtil;
 
     @PostMapping("/login")
     public ResponseEntity<?> responseEntity(@RequestBody User user) {
@@ -29,7 +32,7 @@ public class UserController {
             Optional<User> user1 = userService.login(user);
             if (user1.isPresent()) {
                  log.info("Authentication Successfull");
-                String token = JwtUtil.generateToken(user1.get().getUsername());
+                String token = jwtUtil.generateToken(user1.get().getUsername());
                 return ResponseEntity.ok(new AuthResponse(token));
             }
             else
