@@ -95,9 +95,53 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "scripts/*"
-          target: "/tmp/"
           script: |
-            cd /tmp/scripts
-            chmod +x *.sh
-            sudo ./setup-autostart.sh
+            # Create setup script inline
+            cat > /tmp/setup-autostart.sh << 'EOF'
+            #!/bin/bash
+            echo "Setting up IPL Voting App auto-start..."
+            sudo mkdir -p /home/ubuntu/ipl-voting-app
+            
+            # Create startup script
+            sudo tee /home/ubuntu/ipl-voting-app/start-app.sh > /dev/null << 'SCRIPT_EOF'
+            #!/bin/bash
+            set -e
+            source /home/ubuntu/ipl-voting-app/.env
+            aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+            docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+            docker stop ipl-voting-app || true
+            docker rm ipl-voting-app || true
+            docker run -d --name ipl-voting-app -p 8080:8080 --restart unless-stopped -e DATASOURCE_URL="$DATASOURCE_URL" -e DATASOURCE_USER="$DATASOURCE_USER" -e DATASOURCE_PASSWORD="$DATASOURCE_PASSWORD" -e FRONTEND_URL="$FRONTEND_URL" -e JWT_SECRET="$JWT_SECRET" $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+            echo "IPL Voting App started successfully"
+            SCRIPT_EOF
+            
+            sudo chmod +x /home/ubuntu/ipl-voting-app/start-app.sh
+            sudo chown ubuntu:ubuntu /home/ubuntu/ipl-voting-app/start-app.sh
+            
+            # Create systemd service
+            sudo tee /etc/systemd/system/ipl-voting-app.service > /dev/null << 'SERVICE_EOF'
+            [Unit]
+            Description=IPL Voting Management Application
+            After=docker.service
+            Requires=docker.service
+            
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            EnvironmentFile=/home/ubuntu/ipl-voting-app/.env
+            ExecStart=/home/ubuntu/ipl-voting-app/start-app.sh
+            ExecStop=/usr/bin/docker stop ipl-voting-app
+            User=ubuntu
+            Group=ubuntu
+            
+            [Install]
+            WantedBy=multi-user.target
+            SERVICE_EOF
+            
+            sudo systemctl daemon-reload
+            sudo systemctl enable ipl-voting-app.service
+            echo "Auto-start setup complete!"
+            EOF
+            
+            chmod +x /tmp/setup-autostart.sh
+            sudo /tmp/setup-autostart.sh
