@@ -55,6 +55,23 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Create environment file for auto-start
+            sudo mkdir -p /home/ubuntu/ipl-voting-app
+            sudo tee /home/ubuntu/ipl-voting-app/.env > /dev/null <<EOF
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}
+            AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }}
+            ECR_REPO_NAME=${{ secrets.ECR_REPO_NAME }}
+            DATASOURCE_URL=${{ secrets.DATASOURCE_URL }}
+            DATASOURCE_USER=${{ secrets.DATASOURCE_USER }}
+            DATASOURCE_PASSWORD=${{ secrets.DATASOURCE_PASSWORD }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            EOF
+            sudo chown ubuntu:ubuntu /home/ubuntu/ipl-voting-app/.env
+            
+            # Deploy current container
             export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
             export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
             export AWS_DEFAULT_REGION=${{ secrets.AWS_REGION }}
@@ -63,9 +80,24 @@ jobs:
             sudo docker stop ipl-voting-app || true
             sudo docker rm ipl-voting-app || true
             sudo docker run -d --name ipl-voting-app -p 8080:8080 \
+              --restart unless-stopped \
               -e DATASOURCE_URL=${{ secrets.DATASOURCE_URL }} \
               -e DATASOURCE_USER=${{ secrets.DATASOURCE_USER }} \
               -e DATASOURCE_PASSWORD=${{ secrets.DATASOURCE_PASSWORD }} \
               -e FRONTEND_URL=${{ secrets.FRONTEND_URL }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO_NAME }}:latest
+      
+      # Step 8: Setup Auto-start
+      - name: Setup Auto-start Service
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "scripts/*"
+          target: "/tmp/"
+          script: |
+            cd /tmp/scripts
+            chmod +x *.sh
+            sudo ./setup-autostart.sh

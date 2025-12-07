@@ -1,0 +1,16 @@
+[Unit]
+Description=IPL Voting Management Application
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/home/ubuntu/ipl-voting-app/.env
+ExecStart=/home/ubuntu/ipl-voting-app/start-app.sh
+ExecStop=/usr/bin/docker stop ipl-voting-app
+User=ubuntu
+Group=ubuntu
+
+[Install]
+WantedBy=multi-user.target
