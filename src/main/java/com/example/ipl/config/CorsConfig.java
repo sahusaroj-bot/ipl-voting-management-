@@ -26,9 +26,9 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**")
-                        .allowedOriginPatterns(frontendUrl,"https://api.iplvote.co.in/","https://api.iplvote.co.in")
+                        .allowedOriginPatterns(frontendUrl, "http://localhost:3000","https://www.iplvote.co.in/","https://www.iplvote.co.in")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                        .allowedHeaders("Content-Type", "Authorization")
+                        .allowedHeaders("*")
                         .allowCredentials(true);
             }
         };
