@@ -19,19 +19,32 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
     @Autowired
     JwtRequestFilter jwtRequestFilter;
+    
+    @Autowired
+    RateLimitingFilter rateLimitingFilter;
+    
     @Bean
-  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http .csrf(csrf -> csrf.disable())
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http.csrf(csrf -> csrf.disable())
                 .cors(withDefaults())
+                .headers(headers -> headers
+                    .frameOptions().deny()
+                    .contentTypeOptions().and()
+                    .httpStrictTransportSecurity(hstsConfig -> hstsConfig
+                        .maxAgeInSeconds(31536000)
+                        .includeSubDomains(true)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login").permitAll()
+                        .requestMatchers("/login", "/register", "/refresh").permitAll()
                         .requestMatchers("/setWinner").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        
+        http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
-        return http.build(); }
+        return http.build();
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {

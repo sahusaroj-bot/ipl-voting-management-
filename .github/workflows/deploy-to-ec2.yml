@@ -68,6 +68,9 @@ jobs:
             DATASOURCE_PASSWORD=${{ secrets.DATASOURCE_PASSWORD }}
             FRONTEND_URL=${{ secrets.FRONTEND_URL }}
             JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}
+            JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }}
             EOF
             sudo chown ubuntu:ubuntu /home/ubuntu/ipl-voting-app/.env
             
@@ -86,6 +89,9 @@ jobs:
               -e DATASOURCE_PASSWORD=${{ secrets.DATASOURCE_PASSWORD }} \
               -e FRONTEND_URL=${{ secrets.FRONTEND_URL }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
+              -e JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }} \
+              -e JWT_REFRESH_EXPIRATION=${{ secrets.JWT_REFRESH_EXPIRATION }} \
               ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO_NAME }}:latest
       
       # Step 8: Setup Auto-start
@@ -111,7 +117,7 @@ jobs:
             docker pull $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:latest
             docker stop ipl-voting-app || true
             docker rm ipl-voting-app || true
-            docker run -d --name ipl-voting-app -p 8080:8080 --restart unless-stopped -e DATASOURCE_URL="$DATASOURCE_URL" -e DATASOURCE_USER="$DATASOURCE_USER" -e DATASOURCE_PASSWORD="$DATASOURCE_PASSWORD" -e FRONTEND_URL="$FRONTEND_URL" -e JWT_SECRET="$JWT_SECRET" $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:latest
+            docker run -d --name ipl-voting-app -p 8080:8080 --restart unless-stopped -e DATASOURCE_URL="$DATASOURCE_URL" -e DATASOURCE_USER="$DATASOURCE_USER" -e DATASOURCE_PASSWORD="$DATASOURCE_PASSWORD" -e FRONTEND_URL="$FRONTEND_URL" -e JWT_SECRET="$JWT_SECRET" -e JWT_REFRESH_SECRET="$JWT_REFRESH_SECRET" -e JWT_EXPIRATION="$JWT_EXPIRATION" -e JWT_REFRESH_EXPIRATION="$JWT_REFRESH_EXPIRATION" $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$ECR_REPO_NAME:latest
             echo "IPL Voting App started successfully"
             SCRIPT_EOF
             
