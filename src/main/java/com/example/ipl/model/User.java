@@ -26,7 +26,7 @@ public class User {
     private String password;
     
     private double totalAmount;
-    private double LastSavedAmount;
+    private double lastSavedAmount;
     private boolean accountLocked = false;
     private int failedLoginAttempts = 0;
     private LocalDateTime lastFailedLogin;
@@ -138,12 +138,12 @@ public class User {
         this.role = role;
     }
 
-    public double getLastSavedAmount() {
-        return LastSavedAmount;
+    public double getlastSavedAmount() {
+        return lastSavedAmount;
     }
 
     public void setLastSavedAmount(double lastSavedAmount) {
-        LastSavedAmount = lastSavedAmount;
+        this.lastSavedAmount = lastSavedAmount;
     }
 
     @Override
@@ -154,7 +154,7 @@ public class User {
                 ", email='" + email + '\'' +
                 ", password='" + password + '\'' +
                 ", totalAmount=" + totalAmount +
-                ", LastSavedAmount=" + LastSavedAmount +
+                ", LastSavedAmount=" + lastSavedAmount +
                 ", accountLocked=" + accountLocked +
                 ", failedLoginAttempts=" + failedLoginAttempts +
                 ", lastFailedLogin=" + lastFailedLogin +
