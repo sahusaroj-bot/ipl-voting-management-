@@ -37,7 +37,7 @@ public class SecurityConfig {
                         .maxAgeInSeconds(31536000)
                         .includeSubDomains(true)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/register", "/refresh").permitAll()
+                        .requestMatchers("/login", "/register", "/refresh","/change-password").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
