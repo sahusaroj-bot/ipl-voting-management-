@@ -1,16 +1,16 @@
 package com.example.ipl.model;
 
 public class WinnerRequest {
-    private Long winnerTeamID;
+    private String winnerTeam;
     private Long match_id;
 
     // Getters and setters
-    public Long getWinnerTeamID() {
-        return winnerTeamID;
+    public String getWinnerTeam() {
+        return winnerTeam;
     }
 
-    public void setWinnerTeamID(Long winnerTeamID) {
-        this.winnerTeamID = winnerTeamID;
+    public void setWinnerTeamID(String winnerTeam) {
+        this.winnerTeam = winnerTeam;
     }
 
     public Long getMatch_id() {

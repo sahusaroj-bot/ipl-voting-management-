@@ -1,5 +1,6 @@
 package com.example.ipl.controller;
 
+import com.example.ipl.model.ChangePasswordRequest;
 import com.example.ipl.model.LoginRequest;
 import com.example.ipl.model.RegisterRequest;
 import com.example.ipl.model.User;
@@ -18,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @RestController
 public class UserController {
@@ -31,6 +33,9 @@ public class UserController {
     
     @Autowired
     JwtUtil jwtUtil;
+    
+    @Autowired
+    PasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest loginRequest, BindingResult result) {
@@ -50,7 +55,7 @@ public class UserController {
                 String accessToken = jwtUtil.generateToken(user.getUsername());
                 String refreshToken = jwtUtil.generateRefreshToken(user.getUsername());
                 
-                return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken, user.getId(), user.getUsername()));
+                return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken, user.getId(), user.getUsername(), user.getRole().toString()));
             }
         } catch (Exception e) {
             log.warn("Authentication failed for user: {} - {}", loginRequest.getUsername(), e.getMessage());
@@ -118,10 +123,35 @@ public class UserController {
         }
     }
 
-    @PostMapping("/addUsers")
-    public User addUser(@RequestBody User user) {
-        System.out.println("Received User: " + user);
-        return userRepository.save(user);
+
+    
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request, BindingResult result) {
+        if (result.hasErrors()) {
+            Map<String, String> errors = new HashMap<>();
+            result.getFieldErrors().forEach(error -> 
+                errors.put(error.getField(), error.getDefaultMessage()));
+            return ResponseEntity.badRequest().body(errors);
+        }
+        
+        try {
+            Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+            }
+            
+            User user = userOpt.get();
+            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Current password is incorrect"));
+            }
+            
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            userRepository.save(user);
+            
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to change password"));
+        }
     }
 
     public static class AuthResponse {
@@ -129,12 +159,14 @@ public class UserController {
         private String refreshToken;
         private Long userId;
         private String username;
+        private String role;
         
-        public AuthResponse(String accessToken, String refreshToken, Long userId, String username) {
+        public AuthResponse(String accessToken, String refreshToken, Long userId, String username, String role) {
             this.accessToken = accessToken;
             this.refreshToken = refreshToken;
             this.userId = userId;
             this.username = username;
+            this.role = role;
         }
         
         public String getAccessToken() { return accessToken; }
@@ -148,5 +180,8 @@ public class UserController {
         
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
+        
+        public String getRole() { return role; }
+        public void setRole(String role) { this.role = role; }
     }
 }

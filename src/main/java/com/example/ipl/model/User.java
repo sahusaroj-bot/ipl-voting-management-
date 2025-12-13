@@ -26,12 +26,20 @@ public class User {
     private String password;
     
     private double totalAmount;
-    
+    private double LastSavedAmount;
     private boolean accountLocked = false;
     private int failedLoginAttempts = 0;
     private LocalDateTime lastFailedLogin;
     private LocalDateTime accountLockedUntil;
+    private LocalDateTime lastUpdatedDate;
     private boolean enabled = true;
+    
+    @Enumerated(EnumType.STRING)
+    private Role role = Role.USER;
+
+    public enum Role {
+        USER, ADMIN
+    }
 
     public Long getId() {
         return id;
@@ -106,6 +114,14 @@ public class User {
         this.accountLockedUntil = accountLockedUntil;
     }
 
+    public LocalDateTime getLastUpdatedDate() {
+        return lastUpdatedDate;
+    }
+
+    public void setLastUpdatedDate(LocalDateTime lastUpdatedDate) {
+        this.lastUpdatedDate = lastUpdatedDate;
+    }
+
     public boolean isEnabled() {
         return enabled;
     }
@@ -113,9 +129,39 @@ public class User {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
+    
+    public Role getRole() {
+        return role;
+    }
+    
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public double getLastSavedAmount() {
+        return LastSavedAmount;
+    }
+
+    public void setLastSavedAmount(double lastSavedAmount) {
+        LastSavedAmount = lastSavedAmount;
+    }
 
     @Override
     public String toString() {
-        return "User{" + "id=" + id + ", username='" + username + '\'' + ", email='" + email + '\'' + ", totalAmount=" + totalAmount + '}';
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", email='" + email + '\'' +
+                ", password='" + password + '\'' +
+                ", totalAmount=" + totalAmount +
+                ", LastSavedAmount=" + LastSavedAmount +
+                ", accountLocked=" + accountLocked +
+                ", failedLoginAttempts=" + failedLoginAttempts +
+                ", lastFailedLogin=" + lastFailedLogin +
+                ", accountLockedUntil=" + accountLockedUntil +
+                ", lastUpdatedDate=" + lastUpdatedDate +
+                ", enabled=" + enabled +
+                ", role=" + role +
+                '}';
     }
 }

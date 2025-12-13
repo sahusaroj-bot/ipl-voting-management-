@@ -23,6 +23,9 @@ public class SecurityConfig {
     @Autowired
     RateLimitingFilter rateLimitingFilter;
     
+    @Autowired
+    AdminSecurityFilter adminSecurityFilter;
+    
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http.csrf(csrf -> csrf.disable())
@@ -35,7 +38,6 @@ public class SecurityConfig {
                         .includeSubDomains(true)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/register", "/refresh").permitAll()
-                        .requestMatchers("/setWinner").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
@@ -43,6 +45,7 @@ public class SecurityConfig {
         
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(adminSecurityFilter, JwtRequestFilter.class);
         return http.build();
     }
 

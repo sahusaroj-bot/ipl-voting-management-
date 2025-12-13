@@ -7,6 +7,8 @@ import org.hibernate.dialect.function.ListaggStringAggEmulation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -29,12 +31,12 @@ public class WinnerService {
 /* Save the winner Team for the particular match */
     public void save_winnerTeam(WinnerRequest winnerRequest) {
         // we are fetching the team name to put it in the winner field of the match
-        Optional<Teams> teams = teamsRepository.findById(winnerRequest.getWinnerTeamID());
+        Teams teams = teamsRepository.findByTeam_name(winnerRequest.getWinnerTeam().toUpperCase());
         //fetching matches id for which we have to set the winner
         Optional<Matches> match = matchesRepository.findById(winnerRequest.getMatch_id());
-        if (match.isPresent() && teams.isPresent()) {
+        if (match.isPresent() && teams !=null) {
             Matches matches = match.get();
-            matches.setWinner(teams.get().getTeam_name());
+            matches.setWinner(teams.getName());
             matchesRepository.save(matches);
 
         }
@@ -54,14 +56,14 @@ public class WinnerService {
             winner.setMatch_id(winnerRequest.getMatch_id());
         }
 
-        setTeam(winnerRequest.getWinnerTeamID(), winner);
+        setTeam(winnerRequest.getWinnerTeam().toUpperCase(), winner);
         setWinners(winnerRequest, winner);
         winnerRepository.save(winner);
     }
 
-    private void setTeam(Long teamID, Winner winner) {
+    private void setTeam(String teamName, Winner winner) {
         Optional<Matches> matches = matchesRepository.findById(winner.getMatch_id());
-        Optional<Teams> teams = teamsRepository.findById(teamID);
+        Teams teams = teamsRepository.findByTeam_name(teamName);
         String teamMatch = "";
 
         if (matches.isPresent()) {
@@ -70,8 +72,8 @@ public class WinnerService {
 
         winner.setTeam(teamMatch);
 
-        if (teams.isPresent()) {
-            winner.setWinner_team(teams.get().getTeam_name());
+        if (teams !=null) {
+            winner.setWinner_team(teams.getTeam_name());
         }
     }
 
@@ -84,7 +86,7 @@ public class WinnerService {
                 .filter(value -> Objects.equals(value.getMatch_id(), winnerRequest.getMatch_id()))
                 .toList();
         for (Vote vote : votes) {
-            if (Objects.equals(vote.getVoted_team_id(), winnerRequest.getWinnerTeamID())) {
+            if (Objects.equals(vote.getVoted_team_name(), winnerRequest.getWinnerTeam())) {
                 stringBuilder.append(vote.getUsername()).append(",");
                 userIDs.add(vote.getUser_id());
                 count++;
@@ -93,7 +95,7 @@ public class WinnerService {
         setMoney(userIDs,count);
 
         // Remove trailing comma and space, if necessary
-        if (stringBuilder.length() > 0) {
+        if (!stringBuilder.isEmpty()) {
             stringBuilder.setLength(stringBuilder.length() - 2);
         }
 
@@ -108,6 +110,9 @@ public class WinnerService {
            if(winnerID.isPresent()){
                 User user1 = winnerID.get();
                 user1.setTotalAmount((user1.getTotalAmount()+money));
+                user1.setLastSavedAmount(money);
+               LocalDateTime istDateTime = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+               user1.setLastUpdatedDate(istDateTime);
                 userRepository.save(user1);
 
            }
@@ -124,8 +129,8 @@ public class WinnerService {
                 String[] winnerArray = winner.split(",");
                 for (String s : winnerArray) {
                     winners.get(count).add(s);
+                    count++;
                 }
-                count++;
             }
         }
         return winners;

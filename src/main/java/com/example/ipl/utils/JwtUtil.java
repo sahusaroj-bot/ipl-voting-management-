@@ -75,4 +75,22 @@ public class JwtUtil {
             .build();
         return verifier.verify(token);
     }
+    
+    public String extractUsername(String token) {
+        try {
+            DecodedJWT decodedJWT = verifyToken(token);
+            return decodedJWT.getSubject();
+        } catch (JWTVerificationException e) {
+            return null;
+        }
+    }
+    
+    public boolean validateToken(String token, String username) {
+        try {
+            String extractedUsername = extractUsername(token);
+            return extractedUsername != null && extractedUsername.equals(username);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }

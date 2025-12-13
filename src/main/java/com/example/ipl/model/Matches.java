@@ -12,9 +12,8 @@ public class Matches {
         private Long id;
         private String team1;
         private String team2;
-        private String winner;
         private Date match_date;
-
+        private String winner;
 
         public Long getId() {
                 return id;
@@ -40,19 +39,19 @@ public class Matches {
                 this.team2 = team2;
         }
 
-        public String getWinner() {
-                return winner;
-        }
-
-        public void setWinner(String winner) {
-                this.winner = winner;
-        }
-
         public Date getMatch_date() {
                 return match_date;
         }
 
         public void setMatch_date(Date match_date) {
                 this.match_date = match_date;
+        }
+        
+        public String getWinner() {
+                return winner;
+        }
+        
+        public void setWinner(String winner) {
+                this.winner = winner;
         }
     }
