@@ -138,7 +138,7 @@ public class User {
         this.role = role;
     }
 
-    public double getlastSavedAmount() {
+    public double getLastSavedAmount() {
         return lastSavedAmount;
     }
 
@@ -154,7 +154,7 @@ public class User {
                 ", email='" + email + '\'' +
                 ", password='" + password + '\'' +
                 ", totalAmount=" + totalAmount +
-                ", LastSavedAmount=" + lastSavedAmount +
+                ", lastSavedAmount=" + lastSavedAmount +
                 ", accountLocked=" + accountLocked +
                 ", failedLoginAttempts=" + failedLoginAttempts +
                 ", lastFailedLogin=" + lastFailedLogin +
