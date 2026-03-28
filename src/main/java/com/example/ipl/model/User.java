@@ -37,8 +37,11 @@ public class User {
     @Enumerated(EnumType.STRING)
     private Role role = Role.USER;
 
+    @Column(unique = true)
+    private String transactionId;
+
     public enum Role {
-        USER, ADMIN
+        USER, ADMIN, ACCOUNTANT
     }
 
     public Long getId() {
@@ -133,9 +136,17 @@ public class User {
     public Role getRole() {
         return role;
     }
-    
+
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public String getTransactionId() {
+        return transactionId;
+    }
+
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
     }
 
     public double getLastSavedAmount() {

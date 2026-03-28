@@ -4,13 +4,12 @@ import com.example.ipl.model.Matches;
 import com.example.ipl.model.User;
 import com.example.ipl.model.WinnerRequest;
 import com.example.ipl.repositories.MatchesRepository;
+import com.example.ipl.repositories.TeamsRepository;
 import com.example.ipl.repositories.UserRepository;
-import com.example.ipl.services.UserService;
 import com.example.ipl.services.WinnerService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.annotation.Transactional;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -31,7 +30,10 @@ public class AdminController {
     
     @Autowired
     private MatchesRepository matchesRepository;
-    
+
+    @Autowired
+    private TeamsRepository teamsRepository;
+
     @Autowired
     private PasswordEncoder passwordEncoder;
     
@@ -44,15 +46,30 @@ public class AdminController {
         return userRepository.findAll();
     }
 
-    // Add new match
+    // Add new match — validates both teams exist in teams table
     @PostMapping("/matches")
-    public ResponseEntity<?> addMatch(@Valid @RequestBody Matches match) {
+    public ResponseEntity<?> addMatch(@RequestBody Matches match) {
         try {
+            if (match.getTeam1() == null || match.getTeam2() == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Both teams are required"));
+            }
+            if (teamsRepository.findByTeam_name(match.getTeam1()) == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Team not found: " + match.getTeam1()));
+            }
+            if (teamsRepository.findByTeam_name(match.getTeam2()) == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Team not found: " + match.getTeam2()));
+            }
             Matches savedMatch = matchesRepository.save(match);
             return ResponseEntity.ok(savedMatch);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Failed to add match"));
         }
+    }
+
+    // Get all teams
+    @GetMapping("/teams")
+    public ResponseEntity<?> getAllTeams() {
+        return ResponseEntity.ok(teamsRepository.findAll());
     }
 
     // Get all matches
@@ -115,33 +132,34 @@ public class AdminController {
     @Transactional
     public ResponseEntity<?> setWinner(@RequestBody WinnerRequest winnerRequest) {
         try {
-            // Validate match exists
+            if (winnerRequest.getWinnerTeam() == null || winnerRequest.getWinnerTeam().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Winner team is required"));
+            }
+
             Optional<Matches> matchOpt = matchesRepository.findById(winnerRequest.getMatch_id());
             if (matchOpt.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Match not found"));
             }
-            
+
             Matches match = matchOpt.get();
-            
-            // Validate winner team is one of the match teams
+
+            // Block if winner already set
+            if (match.getWinner() != null && !match.getWinner().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Winner already set for this match"));
+            }
+
+            // Validate winner is one of the match teams
             if (!winnerRequest.getWinnerTeam().equals(match.getTeam1()) &&
                 !winnerRequest.getWinnerTeam().equals(match.getTeam2())) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Winner must be one of the match teams"));
             }
-            
-            // Check if winner already set
-            if (match.getWinner() != null && !match.getWinner().isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Winner already set for this match"));
-            }
-            
-            // Set winner and save winner records
-            winnerService.save_winnerTeam(winnerRequest);
-            winnerService.setWinnerFields(winnerRequest);
-            
+
+            winnerService.processWinner(winnerRequest, match);
+
             return ResponseEntity.ok(Map.of("message", "Winner set successfully", "winner", winnerRequest.getWinnerTeam()));
         } catch (Exception e) {
             log.error("Error setting winner: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", "Failed to set winner"));
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to set winner: " + e.getMessage()));
         }
     }
 }

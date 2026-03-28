@@ -9,7 +9,7 @@ public class WinnerRequest {
         return winnerTeam;
     }
 
-    public void setWinnerTeamID(String winnerTeam) {
+    public void setWinnerTeam(String winnerTeam) {
         this.winnerTeam = winnerTeam;
     }
 

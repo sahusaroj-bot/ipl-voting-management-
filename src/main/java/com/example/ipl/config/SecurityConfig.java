@@ -19,12 +19,12 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
     @Autowired
     JwtRequestFilter jwtRequestFilter;
-    
-    @Autowired
-    RateLimitingFilter rateLimitingFilter;
-    
+
     @Autowired
     AdminSecurityFilter adminSecurityFilter;
+
+    @Autowired
+    AccountantSecurityFilter accountantSecurityFilter;
     
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -37,15 +37,15 @@ public class SecurityConfig {
                         .maxAgeInSeconds(31536000)
                         .includeSubDomains(true)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/register", "/refresh","/change-password").permitAll()
+                        .requestMatchers("/login", "/register", "/refresh", "/verify-transaction", "/reset").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         
-        http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterAfter(adminSecurityFilter, JwtRequestFilter.class);
+        http.addFilterAfter(accountantSecurityFilter, AdminSecurityFilter.class);
         return http.build();
     }
 

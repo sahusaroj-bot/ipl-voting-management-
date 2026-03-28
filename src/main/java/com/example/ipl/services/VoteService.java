@@ -3,7 +3,6 @@ package com.example.ipl.services;
 import com.example.ipl.controller.VoteController;
 import com.example.ipl.model.*;
 import com.example.ipl.repositories.MatchesRepository;
-import com.example.ipl.repositories.TeamsRepository;
 import com.example.ipl.repositories.UserRepository;
 import com.example.ipl.repositories.VoteRepository;
 import org.slf4j.Logger;
@@ -11,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 @Service
@@ -22,70 +23,59 @@ public class VoteService {
     @Autowired
     UserRepository userRepository;
     @Autowired
-    TeamsRepository teamsRepository;
-    @Autowired
     MatchesRepository matchesRepository;
 
     public void addOrUpdateVote(VoteRequest userVote) {
-        // Fetch existing vote for the user and match
+        // Check match exists and voting deadline
+        Optional<Matches> matchOpt = matchesRepository.findById(userVote.getMatch_id());
+        if (matchOpt.isEmpty()) {
+            log.error("Match not found with ID: " + userVote.getMatch_id());
+            throw new RuntimeException("Match not found");
+        }
+
+        Matches match = matchOpt.get();
+        if (match.getVotingDeadline() != null) {
+            LocalDateTime nowIST = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+            if (nowIST.isAfter(match.getVotingDeadline())) {
+                throw new RuntimeException("Voting is closed for this match");
+            }
+        }
+
+        // Validate voted team is part of this match
+        String votedTeam = userVote.getVoted_team_name();
+        if (!votedTeam.equals(match.getTeam1()) && !votedTeam.equals(match.getTeam2())) {
+            log.error("Team name does not match any teams in the match: " + votedTeam);
+            throw new RuntimeException("Invalid team for this match");
+        }
+
+        // One vote per user per match — create or update
         Optional<Vote> existingVote = voteRepository.findByUser_idAndMatch_id(userVote.getUser_id(), userVote.getMatch_id());
 
         Vote vote;
         if (existingVote.isPresent()) {
-            // Update the existing vote
             vote = existingVote.get();
-            log.info("Updating existing vote for user: " + userVote.getUser_id() + ", match: " + userVote.getMatch_id());
+            log.info("Updating vote for user: " + userVote.getUser_id() + ", match: " + userVote.getMatch_id());
         } else {
-            // Create a new vote if it doesn't exist
             vote = new Vote();
             vote.setUser_id(userVote.getUser_id());
             vote.setMatch_id(userVote.getMatch_id());
-            vote.setVote_time(System.currentTimeMillis());
-            log.info("Creating a new vote for user: " + userVote.getUser_id() + ", match: " + userVote.getMatch_id());
+            log.info("Creating vote for user: " + userVote.getUser_id() + ", match: " + userVote.getMatch_id());
         }
 
-        // Fetch user by using the voter's user ID
+        // Fetch user
         Optional<User> user = userRepository.findById(userVote.getUser_id());
-        if (user.isPresent()) {
-            vote.setUsername(user.get().getUsername());
-        } else {
+        if (user.isEmpty()) {
             log.error("User not found with ID: " + userVote.getUser_id());
-            return;
+            throw new RuntimeException("User not found");
         }
+        vote.setUsername(user.get().getUsername());
 
-        // Fetch team by team name
-        Teams teams = teamsRepository.findByTeam_name(userVote.getVoted_team_name());
-        if (teams == null) {
-            log.error("Team not found with name: " + userVote.getVoted_team_name());
-            return;
-        } else {
-            log.info("Team found: " + teams.getName() + " (ID: " + teams.getId() + ")");
-        }
-
-        // Check if the team is part of the match
-        Optional<Matches> matches = matchesRepository.findById(userVote.getMatch_id());
-        if (!matches.isPresent()) {
-            log.error("Match not found with ID: " + userVote.getMatch_id());
-            return;
-        } else {
-            log.info("Match found: " + matches.get().getId() + " involving " + matches.get().getTeam1() + " and " + matches.get().getTeam2());
-        }
-
-        String teamName = teams.getTeam_name();
-        if (!teamName.isEmpty() && (matches.get().getTeam1().equals(teamName) || matches.get().getTeam2().equals(teamName))) {
-            vote.setVoted_team_id(teams.getId());
-            vote.setVoted_team_name(teamName);
-        } else {
-            log.error("Team name does not match any teams in the match: " + teamName);
-            return;
-        }
-
-        // Set updated vote time
+        // Set team name directly from match — no teams table dependency
+        vote.setVoted_team_name(votedTeam);
         vote.setVote_time(System.currentTimeMillis());
 
-        // Save vote (update or create)
         voteRepository.save(vote);
-        log.info("Vote successfully saved for user: " + userVote.getUser_id() + ", team: " + teamName + ", match: " + userVote.getMatch_id());
+        log.info("Vote successfully saved for user: " + userVote.getUser_id() + ", team: " + votedTeam + ", match: " + userVote.getMatch_id());
     }
 
 }

@@ -1,10 +1,12 @@
 package com.example.ipl.controller;
 
-import com.example.ipl.model.ChangePasswordRequest;
 import com.example.ipl.model.LoginRequest;
 import com.example.ipl.model.RegisterRequest;
+import com.example.ipl.model.ResetRequest;
 import com.example.ipl.model.User;
+import com.example.ipl.repositories.TransactionRepository;
 import com.example.ipl.repositories.UserRepository;
+import com.example.ipl.model.Transaction;
 import com.example.ipl.services.UserService;
 import com.example.ipl.utils.JwtUtil;
 import jakarta.validation.Valid;
@@ -26,6 +28,9 @@ public class UserController {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    TransactionRepository transactionRepository;
 
     private static final Logger log = LoggerFactory.getLogger(UserController.class);
     @Autowired
@@ -112,10 +117,28 @@ public class UserController {
             user.setUsername(registerRequest.getUsername());
             user.setEmail(registerRequest.getEmail());
             user.setPassword(registerRequest.getPassword());
-            
+
+            // Validate transactionId
+            String txId = registerRequest.getTransactionId();
+            Transaction transaction = transactionRepository.findByTransactionId(txId)
+                    .orElse(null);
+
+            if (transaction == null) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid transaction ID"));
+            }
+            if (transaction.isUsed()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Transaction ID already used"));
+            }
+
+            user.setTransactionId(txId);
             User savedUser = userService.registerUser(user);
+
+            // Mark transaction as used
+            transaction.setUsed(true);
+            transaction.setUsedBy(savedUser.getUsername());
+            transactionRepository.save(transaction);
+
             log.info("User registered successfully: {}", savedUser.getUsername());
-            
             return ResponseEntity.ok(Map.of("message", "User registered successfully", "userId", savedUser.getId()));
         } catch (Exception e) {
             log.error("Registration failed: {}", e.getMessage());
@@ -125,33 +148,63 @@ public class UserController {
 
 
     
-    @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequest request, BindingResult result) {
-        if (result.hasErrors()) {
-            Map<String, String> errors = new HashMap<>();
-            result.getFieldErrors().forEach(error -> 
-                errors.put(error.getField(), error.getDefaultMessage()));
-            return ResponseEntity.badRequest().body(errors);
+    // Step 1: Verify transactionId before showing reset options
+    @PostMapping("/verify-transaction")
+    public ResponseEntity<?> verifyTransaction(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        String transactionId = body.get("transactionId");
+
+        if (username == null || transactionId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Username and transaction ID are required"));
         }
-        
-        try {
-            Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
-            if (userOpt.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+        }
+
+        User user = userOpt.get();
+        if (!transactionId.equals(user.getTransactionId())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid transaction ID"));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "Verified"));
+    }
+
+    // Step 2a: Update password using transactionId
+    @PostMapping("/reset")
+    public ResponseEntity<?> reset(@RequestBody ResetRequest request) {
+        Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+        }
+
+        User user = userOpt.get();
+        if (!request.getTransactionId().equals(user.getTransactionId())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid transaction ID"));
+        }
+
+        boolean hasNewUsername = request.getNewUsername() != null && !request.getNewUsername().isBlank();
+        boolean hasNewPassword = request.getNewPassword() != null && !request.getNewPassword().isBlank();
+
+        if (!hasNewUsername && !hasNewPassword) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Provide either a new username or new password"));
+        }
+        if (hasNewUsername && hasNewPassword) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Update only one field at a time"));
+        }
+
+        if (hasNewUsername) {
+            if (userRepository.existsByUsername(request.getNewUsername())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Username already taken"));
             }
-            
-            User user = userOpt.get();
-            if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Current password is incorrect"));
-            }
-            
+            user.setUsername(request.getNewUsername());
+        } else {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-            userRepository.save(user);
-            
-            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Failed to change password"));
         }
+
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", hasNewUsername ? "Username updated successfully" : "Password updated successfully"));
     }
 
     public static class AuthResponse {

@@ -3,6 +3,7 @@ package com.example.ipl.model;
 import jakarta.persistence.*;
 
 import java.sql.Date;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "matches")
@@ -14,6 +15,7 @@ public class Matches {
         private String team2;
         private Date match_date;
         private String winner;
+        private LocalDateTime votingDeadline;
 
         public Long getId() {
                 return id;
@@ -50,8 +52,16 @@ public class Matches {
         public String getWinner() {
                 return winner;
         }
-        
+
         public void setWinner(String winner) {
                 this.winner = winner;
+        }
+
+        public LocalDateTime getVotingDeadline() {
+                return votingDeadline;
+        }
+
+        public void setVotingDeadline(LocalDateTime votingDeadline) {
+                this.votingDeadline = votingDeadline;
         }
     }

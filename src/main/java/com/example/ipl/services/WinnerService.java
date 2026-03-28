@@ -2,141 +2,116 @@ package com.example.ipl.services;
 
 import com.example.ipl.model.*;
 import com.example.ipl.repositories.*;
-import com.mysql.cj.x.protobuf.MysqlxDatatypes;
-import org.hibernate.dialect.function.ListaggStringAggEmulation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class WinnerService {
+
+    private static final Logger log = LoggerFactory.getLogger(WinnerService.class);
+
     @Autowired
     MatchesRepository matchesRepository;
     @Autowired
     VoteRepository voteRepository;
     @Autowired
-    TeamsRepository teamsRepository;
-    @Autowired
     WinnerRepository winnerRepository;
     @Autowired
-    UserRepository userRepository;  //To add the money to the user who voted for the winning team
+    UserRepository userRepository;
 
-/* Save the winner Team for the particular match */
-    public void save_winnerTeam(WinnerRequest winnerRequest) {
-        // we are fetching the team name to put it in the winner field of the match
-        Teams teams = teamsRepository.findByTeam_name(winnerRequest.getWinnerTeam().toUpperCase());
-        //fetching matches id for which we have to set the winner
-        Optional<Matches> match = matchesRepository.findById(winnerRequest.getMatch_id());
-        if (match.isPresent() && teams !=null) {
-            Matches matches = match.get();
-            matches.setWinner(teams.getName());
-            matchesRepository.save(matches);
+    /**
+     * Single transactional method:
+     * 1. Sets winner on the match
+     * 2. Creates/updates winner record
+     * 3. Distributes money to winning voters
+     * All steps succeed or all roll back.
+     */
+    @Transactional
+    public void processWinner(WinnerRequest winnerRequest, Matches match) {
+        String winnerTeam = winnerRequest.getWinnerTeam();
+        Long matchId = winnerRequest.getMatch_id();
 
-        }
+        // Step 1: Set winner on match
+        match.setWinner(winnerTeam);
+        matchesRepository.save(match);
+        log.info("Winner set on match {}: {}", matchId, winnerTeam);
 
-    }
-/*WHEN WE SAVE THE WINNER TEAM WE ALSO HAVE TO SAVE THE USERS WHO VOTED FOR THAT TEAM AS WE CAN FETCH THE WINNER TEAM FROM THE WINNER TABLE AND FROM THE VOTE WE WE CAN FETCH THE VOTERS WHO VOTED FOR THE  WINNER TEAM WITH MATCH id AND TEAM ID
-  WHY TEAM ID = IN VOTE TABLE VOTE IS STORED AS TEAM ID SO WE FETCH THE TEAM*/
+        // Step 2: Build winner record
+        Optional<Winner> existingOpt = winnerRepository.findByMatch_id(matchId);
+        Winner winner = existingOpt.orElse(new Winner());
+        winner.setMatch_id(matchId);
+        winner.setTeam(match.getTeam1() + " vs " + match.getTeam2());
+        winner.setWinner_team(winnerTeam);
 
-    public void setWinnerFields(WinnerRequest winnerRequest) {
-        Optional<Winner> existingWinnerOpt = winnerRepository.findById(winnerRequest.getMatch_id());
-        Winner winner;
+        // Step 3: Find all votes for this match that voted for the winning team
+        List<Vote> allMatchVotes = voteRepository.findByMatch_id(matchId);
 
-        if (existingWinnerOpt.isPresent()) {
-            winner = existingWinnerOpt.get();
-        } else {
-            winner = new Winner();
-            winner.setMatch_id(winnerRequest.getMatch_id());
-        }
+        List<Long> winnerUserIDs = new ArrayList<>();
+        StringBuilder winnerNames = new StringBuilder();
 
-        setTeam(winnerRequest.getWinnerTeam().toUpperCase(), winner);
-        setWinners(winnerRequest, winner);
-        winnerRepository.save(winner);
-    }
-
-    private void setTeam(String teamName, Winner winner) {
-        Optional<Matches> matches = matchesRepository.findById(winner.getMatch_id());
-        Teams teams = teamsRepository.findByTeam_name(teamName);
-        String teamMatch = "";
-
-        if (matches.isPresent()) {
-            teamMatch = matches.get().getTeam1() + " vs " + matches.get().getTeam2();
-        }
-
-        winner.setTeam(teamMatch);
-
-        if (teams !=null) {
-            winner.setWinner_team(teams.getTeam_name());
-        }
-    }
-
-    private void setWinners(WinnerRequest winnerRequest, Winner winner) {
-        StringBuilder stringBuilder = new StringBuilder();
-        int count =0;
-        List<Long> userIDs= new ArrayList<>();
-        List<Vote> votes = voteRepository.findAll()
-                .stream()
-                .filter(value -> Objects.equals(value.getMatch_id(), winnerRequest.getMatch_id()))
-                .toList();
-        for (Vote vote : votes) {
-            if (Objects.equals(vote.getVoted_team_name(), winnerRequest.getWinnerTeam())) {
-                stringBuilder.append(vote.getUsername()).append(",");
-                userIDs.add(vote.getUser_id());
-                count++;
+        for (Vote vote : allMatchVotes) {
+            if (winnerTeam.equals(vote.getVoted_team_name())) {
+                winnerUserIDs.add(vote.getUser_id());
+                winnerNames.append(vote.getUsername()).append(",");
             }
         }
-        setMoney(userIDs,count);
 
-        // Remove trailing comma and space, if necessary
-        if (!stringBuilder.isEmpty()) {
-            stringBuilder.setLength(stringBuilder.length() - 2);
+        // Remove trailing comma
+        if (!winnerNames.isEmpty()) {
+            winnerNames.setLength(winnerNames.length() - 1);
         }
 
-        winner.setWinners(stringBuilder.toString());
-    }
-    private void setMoney(List<Long> userIDs,int count) {
-        List<User> user = userRepository.findAll();
-        int total =user.size()*10;
-        double money = (double) total /count;
-       for(Long userID:userIDs){
-           Optional<User> winnerID =userRepository.findById(userID);
-           if(winnerID.isPresent()){
-                User user1 = winnerID.get();
-                user1.setTotalAmount((user1.getTotalAmount()+money));
-                user1.setLastSavedAmount(money);
-               LocalDateTime istDateTime = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
-               user1.setLastUpdatedDate(istDateTime);
-                userRepository.save(user1);
+        winner.setWinners(winnerNames.toString());
+        winnerRepository.save(winner);
+        log.info("Winner record saved for match {}. Winners: {}", matchId, winnerNames);
 
-           }
+        // Step 4: Distribute money
+        if (winnerUserIDs.isEmpty()) {
+            log.info("No users voted for the winning team in match {}", matchId);
+            return;
+        }
+
+        long totalUsers = userRepository.count();
+        double pool = totalUsers * 10.0;
+        double moneyPerWinner = pool / winnerUserIDs.size();
+        LocalDateTime istNow = LocalDateTime.now(ZoneId.of("Asia/Kolkata"));
+
+        log.info("Prize pool: {} | Winners: {} | Per winner: {}", pool, winnerUserIDs.size(), moneyPerWinner);
+
+        for (Long userID : winnerUserIDs) {
+            Optional<User> userOpt = userRepository.findById(userID);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                user.setTotalAmount(user.getTotalAmount() + moneyPerWinner);
+                user.setLastSavedAmount(moneyPerWinner);
+                user.setLastUpdatedDate(istNow);
+                userRepository.save(user);
+                log.info("Added {} to user {}", moneyPerWinner, user.getUsername());
+            }
         }
     }
 
     public List<List<String>> getWinners(List<Long> matchIDs) {
-        List<List<String>> winners = new ArrayList<>();
-        int count = 0;
+        List<List<String>> result = new ArrayList<>();
         for (Long matchID : matchIDs) {
-            winners.add(new ArrayList<>());
-            String winner = winnerRepository.findByMatch_id(matchID);
-            if (null != winner) {
-                String[] winnerArray = winner.split(",");
-                for (String s : winnerArray) {
-                    winners.get(count).add(s);
-                    count++;
+            List<String> matchWinners = new ArrayList<>();
+            Optional<Winner> winnerOpt = winnerRepository.findByMatch_id(matchID);
+            if (winnerOpt.isPresent() && winnerOpt.get().getWinners() != null) {
+                for (String s : winnerOpt.get().getWinners().split(",")) {
+                    if (!s.isBlank()) matchWinners.add(s.trim());
                 }
             }
+            result.add(matchWinners);
         }
-        return winners;
+        return result;
     }
 }
-
-
-
-

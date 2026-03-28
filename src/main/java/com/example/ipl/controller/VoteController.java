@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -31,6 +32,9 @@ public class VoteController {
         try {
             voteService.addOrUpdateVote(userVote);
             return new ResponseEntity<>(HttpStatus.OK);
+        } catch (RuntimeException e) {
+            log.error("Vote rejected: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             log.error("Error adding vote", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
