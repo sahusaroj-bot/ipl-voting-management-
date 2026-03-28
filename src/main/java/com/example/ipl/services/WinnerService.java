@@ -2,6 +2,8 @@ package com.example.ipl.services;
 
 import com.example.ipl.model.*;
 import com.example.ipl.repositories.*;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -113,5 +115,35 @@ public class WinnerService {
             result.add(matchWinners);
         }
         return result;
+    }
+
+    public List<MatchResultDTO> getMatchResults(List<Matches> matches) {
+        long totalUsers = userRepository.count();
+        double pool = totalUsers * 10.0;
+
+        List<MatchResultDTO> results = new ArrayList<>();
+        for (Matches match : matches) {
+            Optional<Winner> winnerOpt = winnerRepository.findByMatch_id(match.getId());
+
+            if (winnerOpt.isEmpty() || winnerOpt.get().getWinner_team() == null) {
+                results.add(new MatchResultDTO(
+                        match.getId(), match.getTeam1(), match.getTeam2(),
+                        null, new ArrayList<>(), 0, pool));
+                continue;
+            }
+
+            Winner winner = winnerOpt.get();
+            List<String> winnerNames = winner.getWinners() == null ? new ArrayList<>()
+                    : Arrays.stream(winner.getWinners().split(","))
+                            .map(String::trim).filter(s -> !s.isBlank())
+                            .collect(Collectors.toList());
+
+            double amountPerWinner = winnerNames.isEmpty() ? 0 : pool / winnerNames.size();
+
+            results.add(new MatchResultDTO(
+                    match.getId(), match.getTeam1(), match.getTeam2(),
+                    winner.getWinner_team(), winnerNames, amountPerWinner, pool));
+        }
+        return results;
     }
 }
