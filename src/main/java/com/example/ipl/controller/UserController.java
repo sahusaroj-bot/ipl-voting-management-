@@ -95,6 +95,15 @@ public class UserController {
        return userRepository.findAll();
     }
 
+    @GetMapping("/leaderboard")
+    public List<User> getLeaderboard() {
+        return userRepository.findAll()
+                .stream()
+                .filter(u -> u.getTotalAmount() > 0)
+                .sorted((a, b) -> Double.compare(b.getTotalAmount(), a.getTotalAmount()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest registerRequest, BindingResult result) {
         if (result.hasErrors()) {
@@ -148,14 +157,39 @@ public class UserController {
 
 
     
-    // Step 1: Verify transactionId before showing reset options
-    @PostMapping("/verify-transaction")
-    public ResponseEntity<?> verifyTransaction(@RequestBody Map<String, String> body) {
+    // Fetch the transactionId linked to a username (masked for security)
+    @PostMapping("/get-transaction-hint")
+    public ResponseEntity<?> getTransactionHint(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Username is required"));
+        }
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
+        }
+        String txId = userOpt.get().getTransactionId();
+        if (txId == null || txId.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No transaction ID linked to this account"));
+        }
+        // Return masked hint: show last 4 chars only
+        String hint = "*".repeat(Math.max(0, txId.length() - 4)) + txId.substring(Math.max(0, txId.length() - 4));
+        return ResponseEntity.ok(Map.of("hint", hint, "length", txId.length()));
+    }
+
+    // Reset password: verify username + transactionId, then update password only
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
         String username = body.get("username");
         String transactionId = body.get("transactionId");
+        String newPassword = body.get("newPassword");
 
-        if (username == null || transactionId == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Username and transaction ID are required"));
+        if (username == null || transactionId == null || newPassword == null
+                || username.isBlank() || transactionId.isBlank() || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "All fields are required"));
+        }
+        if (newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 6 characters"));
         }
 
         Optional<User> userOpt = userRepository.findByUsername(username);
@@ -168,43 +202,13 @@ public class UserController {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid transaction ID"));
         }
 
-        return ResponseEntity.ok(Map.of("message", "Verified"));
-    }
-
-    // Step 2a: Update password using transactionId
-    @PostMapping("/reset")
-    public ResponseEntity<?> reset(@RequestBody ResetRequest request) {
-        Optional<User> userOpt = userRepository.findByUsername(request.getUsername());
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "User not found"));
-        }
-
-        User user = userOpt.get();
-        if (!request.getTransactionId().equals(user.getTransactionId())) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Invalid transaction ID"));
-        }
-
-        boolean hasNewUsername = request.getNewUsername() != null && !request.getNewUsername().isBlank();
-        boolean hasNewPassword = request.getNewPassword() != null && !request.getNewPassword().isBlank();
-
-        if (!hasNewUsername && !hasNewPassword) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Provide either a new username or new password"));
-        }
-        if (hasNewUsername && hasNewPassword) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Update only one field at a time"));
-        }
-
-        if (hasNewUsername) {
-            if (userRepository.existsByUsername(request.getNewUsername())) {
-                return ResponseEntity.badRequest().body(Map.of("error", "Username already taken"));
-            }
-            user.setUsername(request.getNewUsername());
-        } else {
-            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        }
-
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setAccountLocked(false);
+        user.setFailedLoginAttempts(0);
         userRepository.save(user);
-        return ResponseEntity.ok(Map.of("message", hasNewUsername ? "Username updated successfully" : "Password updated successfully"));
+
+        log.info("Password reset for user: {}", username);
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
     }
 
     public static class AuthResponse {
